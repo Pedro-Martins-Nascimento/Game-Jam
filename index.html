@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project: GLITCHFALL</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="background-canvas"></canvas>
+    <canvas id="main-canvas"></canvas>
+
+    <div id="hud" style="display: none;">
+      <div>Score: <span id="score">0</span></div>
+      <div>Data Shards: <span id="shards">0</span></div>
+      <div>Health: <span id="health">3</span></div>
+    </div>
+
+    <div id="dash-cooldown" style="display: none;">
+      <div id="dash-indicator"></div>
+    </div>
+
+    <div id="start-screen" class="game-screen">
+      <h1>PROJECT: GLITCHFALL</h1>
+      <p>Click to Begin Run</p>
+    </div>
+
+    <div id="upgrade-screen" class="game-screen" style="display: none;">
+      <h1>SECTOR COMPLETE</h1>
+      <p>Select a Volatile Mod:</p>
+      <div id="upgrade-options"></div>
+    </div>
+
+    <div id="game-over-screen" class="game-screen" style="display: none;">
+      <h1>SYSTEM CRASH!</h1>
+      <p>Score: <span id="final-score">0</span></p>
+      <p>Best Score: <span id="best-score">0</span></p>
+      <p>System Restoration Points: <span id="permanent-currency">0</span></p>
+      <p>Press 'R' to Reboot</p>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
