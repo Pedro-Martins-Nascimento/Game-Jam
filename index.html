@@ -23,8 +23,48 @@
     </div>
 
     <div id="start-screen" class="game-screen">
-      <h1>PROJECT: GLITCHFALL</h1>
-      <p>Click to Begin Run</p>
+      <div class="glitch-background"></div>
+      <h1 class="game-logo" data-text="PROJECT: GLITCHFALL">PROJECT: GLITCHFALL</h1>
+      <div class="menu-buttons">
+        <button id="play-button">Iniciar Run</button>
+        <button id="character-button">Personagem</button>
+        <button id="shop-button">Loja de Fragmentos</button>
+      </div>
+      <div class="game-footer">
+        <span>v0.1.0</span>
+        <span>Créditos</span>
+        <span>ESC para Sair</span>
+      </div>
+    </div>
+
+    <div id="character-selection-screen" class="game-screen" style="display: none;">
+      <h1>ESCOLHA SEU PROGRAMA</h1>
+      <div class="character-cards">
+        <div class="character-card" data-character="kira">
+          <img src="" alt="Kira.exe art" />
+          <h2>Kira.exe</h2>
+          <p>Espadachim ágil, especialista em combate corpo a corpo com sua lâmina de dados.</p>
+        </div>
+        <div class="character-card" data-character="dax">
+          <img src="" alt="Dax_404 art" />
+          <h2>Dax_404</h2>
+          <p>Artilheiro de longo alcance, mantendo distância e eliminando anomalias com precisão.</p>
+        </div>
+        <div class="character-card" data-character="noa">
+          <img src="" alt="Noa.v3 art" />
+          <h2>Noa.v3</h2>
+          <p>Híbrido de suporte, mesclando ataques de energia com manipulação de dados.</p>
+        </div>
+      </div>
+      <button id="start-run-from-char-select">Iniciar</button>
+      <button class="back-button">Voltar</button>
+    </div>
+
+    <div id="shop-screen" class="game-screen" style="display: none;">
+        <h1>LOJA DE FRAGMENTOS</h1>
+        <p>Gaste fragmentos para melhorias permanentes.</p>
+        <!-- Conteúdo da loja aqui -->
+        <button class="back-button">Voltar</button>
     </div>
 
     <div id="upgrade-screen" class="game-screen" style="display: none;">
@@ -41,6 +81,10 @@
       <p>Press 'R' to Reboot</p>
     </div>
   </div>
+
+  <audio id="bg-music" loop>
+    <!-- <source src="path/to/your/music.mp3" type="audio/mpeg"> -->
+  </audio>
 
   <script type="module" src="/js/main.js"></script>
 </body>

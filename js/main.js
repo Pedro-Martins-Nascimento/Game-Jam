@@ -23,7 +23,7 @@ import { enemies, updateEnemies, renderEnemy, damageEnemy, createEnemy } from ".
 import { projectiles, shoot, updateProjectiles, renderProjectile, shootEnemy } from "./entities/projectile.js";
 import { shardItems, spawnShard, updateShards as updateShardItems, tryCollectShards, renderShard } from "./entities/shard.js";
 import { showHUD, updateHUD } from "./ui/hud.js";
-import { showStartScreen, showGameOverScreen, hideAllScreens, showUpgradeScreen } from "./ui/screens.js";
+import { showStartScreen, showGameOverScreen, hideAllScreens, showUpgradeScreen, showCharacterSelectionScreen, showShopScreen } from "./ui/screens.js";
 import { unstableBlocks, createUnstableBlock, triggerUnstableBlock, updateUnstableBlocks, renderUnstableBlock } from "./world/unstable.js";
 
 // Canvas setup
@@ -242,6 +242,16 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
+function playMusic() {
+    const music = document.getElementById('bg-music');
+    if (music && music.paused) {
+        music.play().catch(e => console.error("Erro ao tocar música:", e));
+        // Remove listener to only trigger once
+        document.body.removeEventListener('click', playMusic);
+        document.body.removeEventListener('keydown', playMusic);
+    }
+}
+
 // Start flow: show start screen and set listeners
 function init() {
   initPhysics();
@@ -252,9 +262,40 @@ function init() {
       tryStartSlash(worldMouse);
     }
   }, null);
-  showStartScreen(() => {
-    startRun();
-  });
+  
+  const goBackToStart = () => {
+      hideAllScreens();
+      showStartScreen(
+          startRun, 
+          showCharacterSelect,
+          showShop
+      );
+  };
+
+  const showCharacterSelect = () => {
+      showCharacterSelectionScreen(
+          (character) => {
+              console.log("Personagem selecionado:", character);
+              startRun(character);
+          },
+          goBackToStart
+      );
+  };
+
+  const showShop = () => {
+      showShopScreen(goBackToStart);
+  };
+
+  showStartScreen(
+      startRun,
+      showCharacterSelect,
+      showShop
+  );
+
+  // Music needs user interaction to start
+  document.body.addEventListener('click', playMusic, { once: true });
+  document.body.addEventListener('keydown', playMusic, { once: true });
+
   loop();
 }
 

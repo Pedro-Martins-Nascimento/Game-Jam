@@ -89,17 +89,141 @@ canvas {
   font-size: 1.5em;
 }
 
-#upgrade-screen .upgrade-option {
-  border: 2px solid #00ffff;
-  padding: 20px;
-  margin: 10px;
-  cursor: pointer;
-  width: 80%;
-  max-width: 500px;
-  transition: background-color 0.2s, box-shadow 0.2s;
+.game-screen .game-logo {
+  font-size: 5em;
+  color: #00ffff;
+  text-shadow: 0 0 10px #ff00ff, 0 0 20px #00ffff, 0 0 30px #ff00ff;
+  position: relative;
+  animation: logo-glitch 5s infinite alternate;
 }
 
-#upgrade-screen .upgrade-option:hover {
+.game-logo::before,
+.game-logo::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #0a0a1a;
+  overflow: hidden;
+}
+
+.game-logo::before {
+  left: 2px;
+  text-shadow: -2px 0 #ff00ff;
+  animation: glitch-anim-1 2s infinite linear alternate-reverse;
+}
+
+.game-logo::after {
+  left: -2px;
+  text-shadow: -2px 0 #00ffff, 2px 2px #ff00ff;
+  animation: glitch-anim-2 1s infinite linear alternate-reverse;
+}
+
+@keyframes logo-glitch {
+  0% { transform: skewX(0deg); }
+  5% { transform: skewX(2deg); }
+  10% { transform: skewX(-2deg); }
+  15% { transform: skewX(0deg); }
+  100% { transform: skewX(0deg); }
+}
+
+@keyframes glitch-anim-1 {
+  0% { clip-path: inset(5% 0 90% 0); }
+  20% { clip-path: inset(40% 0 45% 0); }
+  40% { clip-path: inset(20% 0 60% 0); }
+  60% { clip-path: inset(80% 0 5% 0); }
+  80% { clip-path: inset(50% 0 30% 0); }
+  100% { clip-path: inset(70% 0 20% 0); }
+}
+
+@keyframes glitch-anim-2 {
+  0% { clip-path: inset(95% 0 2% 0); }
+  20% { clip-path: inset(30% 0 55% 0); }
+  40% { clip-path: inset(5% 0 80% 0); }
+  60% { clip-path: inset(60% 0 25% 0); }
+  80% { clip-path: inset(90% 0 5% 0); }
+  100% { clip-path: inset(40% 0 40% 0); }
+}
+
+
+.menu-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 40px;
+}
+
+.menu-buttons button, .back-button, #start-run-from-char-select {
+  background: transparent;
+  border: 2px solid #00ffff;
+  color: #00ffff;
+  padding: 15px 30px;
+  font-size: 1.2em;
+  font-family: 'Courier New', Courier, monospace;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: background-color 0.3s, text-shadow 0.3s;
+  text-shadow: 0 0 5px #00ffff;
+}
+
+.menu-buttons button:hover, .back-button:hover, #start-run-from-char-select:hover {
   background-color: rgba(0, 255, 255, 0.2);
-  box-shadow: 0 0 15px #00ffff;
+  text-shadow: 0 0 10px #00ffff, 0 0 15px #00ffff;
+}
+
+.game-footer {
+  position: absolute;
+  bottom: 20px;
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  font-size: 0.9em;
+  color: #888;
+}
+
+#character-selection-screen h1 {
+    margin-bottom: 40px;
+}
+
+.character-cards {
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+  align-items: center;
+}
+
+.character-card {
+  border: 2px solid #00ffff;
+  width: 250px;
+  padding: 20px;
+  text-align: center;
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+}
+
+.character-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 10px 20px rgba(0, 255, 255, 0.3);
+}
+
+.character-card img {
+  width: 100%;
+  height: 200px; /* Placeholder height */
+  background-color: #333; /* Placeholder color */
+  margin-bottom: 15px;
+}
+
+.character-card h2 {
+  color: #ff00ff;
+  margin-bottom: 10px;
+}
+
+.character-card p {
+    font-size: 1em;
+}
+
+.back-button, #start-run-from-char-select {
+    margin-top: 40px;
 }

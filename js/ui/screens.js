@@ -2,16 +2,43 @@
 
 import { allUpgrades } from "../config.js";
 
-export function showStartScreen(onStart) {
+export function showStartScreen(onStart, onShowCharacters, onShowShop) {
   const start = document.getElementById('start-screen');
   if (!start) return;
   start.style.display = 'flex';
-  const handler = () => {
-    start.style.display = 'none';
-    start.removeEventListener('click', handler);
-    onStart && onStart();
+
+  const playBtn = document.getElementById('play-button');
+  const charBtn = document.getElementById('character-button');
+  const shopBtn = document.getElementById('shop-button');
+
+  const playHandler = () => {
+    // Ao clicar em jogar, vamos para a seleção de personagem por padrão
+    hideAllScreens();
+    onShowCharacters();
+    cleanup();
   };
-  start.addEventListener('click', handler);
+
+  const charHandler = () => {
+    hideAllScreens();
+    onShowCharacters();
+    cleanup();
+  };
+
+  const shopHandler = () => {
+    hideAllScreens();
+    onShowShop();
+    cleanup();
+  };
+
+  const cleanup = () => {
+    playBtn.removeEventListener('click', playHandler);
+    charBtn.removeEventListener('click', charHandler);
+    shopBtn.removeEventListener('click', shopHandler);
+  };
+
+  playBtn.addEventListener('click', playHandler);
+  charBtn.addEventListener('click', charHandler);
+  shopBtn.addEventListener('click', shopHandler);
 }
 
 export function showGameOverScreen(score, best, currency, onRestart) {
@@ -65,4 +92,69 @@ export function showUpgradeScreen(onSelectUpgrade) {
     }, { once: true });
     options.appendChild(div);
   });
+}
+
+export function showCharacterSelectionScreen(onStartGame, onBack) {
+    const screen = document.getElementById('character-selection-screen');
+    if (!screen) return;
+    screen.style.display = 'flex';
+
+    const startBtn = document.getElementById('start-run-from-char-select');
+    const backBtn = screen.querySelector('.back-button');
+    const characterCards = screen.querySelectorAll('.character-card');
+
+    let selectedCharacter = null;
+
+    const startHandler = () => {
+        if (selectedCharacter) {
+            onStartGame(selectedCharacter);
+            cleanup();
+        } else {
+            // Opcional: Adicionar feedback para o usuário selecionar um personagem
+            console.log("Por favor, selecione um personagem.");
+        }
+    };
+
+    const backHandler = () => {
+        onBack();
+        cleanup();
+    };
+
+    const selectCharHandler = (e) => {
+        characterCards.forEach(card => card.style.borderColor = '#00ffff');
+        const selectedCard = e.currentTarget;
+        selectedCard.style.borderColor = '#ff00ff'; // Highlight
+        selectedCharacter = selectedCard.dataset.character;
+    };
+
+    const cleanup = () => {
+        startBtn.removeEventListener('click', startHandler);
+        backBtn.removeEventListener('click', backHandler);
+        characterCards.forEach(card => card.removeEventListener('click', selectCharHandler));
+        screen.style.display = 'none';
+    };
+
+    startBtn.addEventListener('click', startHandler);
+    backBtn.addEventListener('click', backHandler);
+    characterCards.forEach(card => card.addEventListener('click', selectCharHandler));
+}
+
+export function showShopScreen(onBack) {
+    const screen = document.getElementById('shop-screen');
+    if (!screen) return;
+    screen.style.display = 'flex';
+
+    const backBtn = screen.querySelector('.back-button');
+
+    const backHandler = () => {
+        onBack();
+        cleanup();
+    };
+    
+    const cleanup = () => {
+        backBtn.removeEventListener('click', backHandler);
+        screen.style.display = 'none';
+    };
+
+    backBtn.addEventListener('click', backHandler);
 }
