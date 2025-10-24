@@ -42,3 +42,21 @@ export function setupCollisionEvents(playerRef, callbacks = {}) {
     });
   });
 }
+
+export function clearWorld(engine) {
+  if (!engine || !engine.world) return;
+  const { World, Composite } = Matter;
+  
+  // Remove todos os corpos, compostos e restrições, exceto os estáticos
+  Composite.allBodies(engine.world).forEach(body => {
+    if (!body.isStatic) {
+      World.remove(engine.world, body);
+    }
+  });
+  Composite.allComposites(engine.world).forEach(composite => {
+    World.remove(engine.world, composite);
+  });
+  Composite.allConstraints(engine.world).forEach(constraint => {
+    World.remove(engine.world, constraint);
+  });
+}

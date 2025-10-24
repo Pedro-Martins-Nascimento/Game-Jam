@@ -14,9 +14,13 @@
 import { config, playerState } from "./config.js";
 import { drawBody } from "./utils.js";
 import { camera, updateCamera, drawBackground } from "./core/camera.js";
-import { keys, mouse, setupInputListeners } from "./core/input.js";
-import { engine, world, initPhysics, setupCollisionEvents } from "./world/physics.js";
+import { gameState, STATES } from "./core/gameState.js";
+import { keys, mouse, setupInputListeners, consumeClick } from "./core/input.js";
+import { engine, world, initPhysics, setupCollisionEvents, clearWorld } from "./world/physics.js";
 import { generateBasicArena, renderPortal } from "./world/generation.js";
+// ... (o resto das importações)
+import { loadPlayerData, savePlayerData, updateBestScore, addPermanentCurrency } from "./data/playerData.js";
+
 import { particles, updateParticles, renderParticle, clearParticles } from "./entities/effects.js";
 import { player, createPlayer, handlePlayerInput, handlePlayerJump, updatePlayerState, renderPlayer, playerTakeDamage, tryStartSlash } from "./entities/player.js";
 import { enemies, updateEnemies, renderEnemy, damageEnemy, createEnemy } from "./entities/enemy.js";
@@ -44,12 +48,12 @@ resize();
 
 // Game state
 let gameFrame = 0;
-let running = false;
+// let running = false; // 'running' será substituído pelo gameState
 let score = 0;
 let shards = 0; // player's collected shard count
 let stage = 1;
 let portal = null;
-let inUpgrade = false;
+// let inUpgrade = false; // 'inUpgrade' será substituído pelo gameState
 
 function worldToScreen(x, y) {
   const sx = (x - camera.x) * camera.zoom + canvas.width / 2;
@@ -63,40 +67,40 @@ function screenToWorld(mouseX, mouseY) {
   return { x: wx, y: wy };
 }
 
-function startRun() {
+let playerData = {};
+
+function initGameFlow() {
   hideAllScreens();
+  canvas.classList.remove('interactive');
+  gameState.set(STATES.IN_MENU);
+  showStartScreen(
+    () => showCharacterSelectionScreen(startRun, initGameFlow, playerData.unlockedCharacters),
+    () => showCharacterSelectionScreen(startRun, initGameFlow, playerData.unlockedCharacters),
+    () => showShopScreen(initGameFlow)
+  );
+}
+
+function startRun(character = 'kira') {
+  hideAllScreens();
+  canvas.classList.add('interactive');
+  clearWorld(engine);
   clearParticles();
+  
   playerState.health = playerState.maxHealth;
-  score = 0; shards = 0;
+  score = 0;
+  shards = 0;
   stage = 1;
-  if (!engine) initPhysics();
-    portal = generateBasicArena(stage);
-  const p = createPlayer(200, config.world.height - 200, world);
+  
+  portal = generateBasicArena(stage);
+  const p = createPlayer(200, config.world.height - 200, world, character);
   setupCollisionEvents(p);
-  setupInputListeners((e) => {
-    // Jump keys
-    handlePlayerJump(e);
-    // Slash key (E)
-    if (e.code === 'KeyE' && player) {
-      const worldMouse = screenToWorld(mouse.x, mouse.y);
-      tryStartSlash(worldMouse);
-    }
-  }, () => {
-    // Click to shoot towards mouse
-    const worldMouse = screenToWorld(mouse.x, mouse.y);
-    shoot(p.body.position, worldMouse, 22);
-  });
+
   showHUD(true);
-  // Spawn some initial enemies
+  
   for (let i = 0; i < 8; i++) {
     const ex = 600 + Math.random() * (config.world.width - 800);
     const ey = config.world.height - 800 - Math.random() * 800;
     createEnemy(ex, ey);
-  }
-  // Clear any existing unstable blocks and place new ones
-  for (let i = unstableBlocks.length - 1; i >= 0; i--) {
-    try { Matter.World.remove(world, unstableBlocks[i].body); } catch (_) {}
-    unstableBlocks.splice(i, 1);
   }
   for (let i = 0; i < 6; i++) {
     const bx = 500 + Math.random() * (config.world.width - 1000);
@@ -104,73 +108,145 @@ function startRun() {
     const type = ['fragile', 'volatile', 'kinetic'][Math.floor(Math.random()*3)];
     createUnstableBlock(bx, by, 60, 40, type, world);
   }
-  running = true;
+
+  gameState.set(STATES.IN_GAME);
 }
 
 function gameOver() {
-  running = false;
+  canvas.classList.remove('interactive');
+  gameState.set(STATES.GAME_OVER);
   showHUD(false);
-  const best = Number(localStorage.getItem('bestScore') || '0');
-  const newBest = Math.max(best, score);
-  localStorage.setItem('bestScore', String(newBest));
-  showGameOverScreen(score, newBest, 0, () => {
-    // restart
-    startRun();
-  });
+
+  updateBestScore(score);
+  addPermanentCurrency(shards);
+  playerData = loadPlayerData();
+
+  showGameOverScreen(score, playerData.bestScore, playerData.permanentCurrency, initGameFlow);
 }
 
-function update() {
-  if (!running) return;
-  // Physics step
-  Matter.Engine.update(engine, 1000 / 60);
-
-  // Inputs and player state
-  if (!inUpgrade) {
+function handleGameInputs() {
+    // Movimentação e estado do jogador
     handlePlayerInput(keys);
     updatePlayerState();
+
+    // Ações com input direto
+    if (keys['KeyW'] || keys['Space']) {
+        handlePlayerJump({ code: keys['KeyW'] ? 'KeyW' : 'Space' });
+    }
+    if (keys['KeyE']) {
+        const worldMouse = screenToWorld(mouse.x, mouse.y);
+        tryStartSlash(worldMouse);
+    }
+    if (mouse.isDown) { // Usar isDown para tiro contínuo
+        const worldMouse = screenToWorld(mouse.x, mouse.y);
+        shoot(player.body.position, worldMouse, 22);
+    }
+}
+
+/**
+ * Check collisions between friendly projectiles and enemies.
+ * This is manual because projectiles are kinematic objects (not Matter bodies).
+ */
+function handleProjectileCollisions() {
+  if (!projectiles || !enemies) return;
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    if (p.isEnemy) {
+      // enemy projectile: check collision with player
+      if (player && player.body) {
+        const pdx = p.x - player.body.position.x;
+        const pdy = p.y - player.body.position.y;
+        const pdist = Math.hypot(pdx, pdy);
+        const playerRadius = Math.max(config.player.width, config.player.height) / 2;
+        if (pdist < p.radius + playerRadius) {
+          // hit player
+          projectiles.splice(i, 1);
+          playerTakeDamage(() => gameOver(), camera);
+          continue;
+        }
+      }
+      continue;
+    }
+
+    // friendly projectile: check collision against enemies
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      const e = enemies[j];
+      const dx = p.x - e.position.x;
+      const dy = p.y - e.position.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < (p.radius + e.size / 2)) {
+        // apply damage and remove projectile
+        damageEnemy(e, 1);
+        projectiles.splice(i, 1); // Remove projectile on hit
+        if (e._dead) {
+          // remove enemy and spawn shard/reward
+          enemies.splice(j, 1);
+          spawnShard(e.position.x, e.position.y);
+          score += 100;
+        }
+        break; // projectile is gone, stop checking this projectile
+      }
+    }
+  }
+}
+
+
+function update() {
+  // Lógica de input baseada no estado do jogo
+  if (gameState.is(STATES.GAME_OVER) && mouse.clicked) {
+    initGameFlow(); // Volta para o menu
+    consumeClick(); // O clique é consumido APÓS ser usado.
   }
 
-  // Enemies and projectiles
-  if (!inUpgrade) {
-    updateEnemies(player);
-    updateProjectiles();
-    updateShardItems(player);
-    tryCollectShards(player, () => { shards++; score += 10; });
-    updateUnstableBlocks(engine.world, {
-      onPlayerHit: () => playerTakeDamage(() => gameOver(), camera),
-      camera,
-    });
+  // A lógica de atualização do jogo só roda se o estado for IN_GAME
+  if (!gameState.is(STATES.IN_GAME)) {
+    // Atualiza coisas que devem rodar sempre, como partículas
+    updateParticles();
+    // Atualiza a câmera mesmo fora de jogo para efeitos de menu, se houver
+    if (player) updateCamera(player, gameFrame, bgCanvas, bgCtx);
+    else drawBackground(bgCanvas, bgCtx); // Se não houver jogador, apenas desenha o fundo
+    return;
   }
 
-  // Camera & particles
+  // --- Lógica que só roda durante o jogo ---
+  Matter.Engine.update(engine, 1000 / 60);
+
+  handleGameInputs();
+
+  updateEnemies(player);
+  updateProjectiles();
+  // Handle friendly projectile collisions with enemies (manual kinematic collision)
+  handleProjectileCollisions();
+  updateShardItems(player);
+  tryCollectShards(player, () => { shards++; score += 10; });
+  updateUnstableBlocks(engine.world, {
+    onPlayerHit: () => playerTakeDamage(() => gameOver(), camera),
+    camera,
+  });
+
   updateCamera(player, gameFrame, bgCanvas, bgCtx);
   updateParticles();
 
-  // Score over time
-  if (!inUpgrade && gameFrame % 30 === 0) score += 1;
+  if (gameFrame % 30 === 0) score += 1;
 
-  // Portal collision check
-  if (!inUpgrade && portal && player) {
+  if (portal && player) {
     const dx = player.body.position.x - portal.position.x;
     const dy = player.body.position.y - portal.position.y;
     if (Math.hypot(dx, dy) < portal.radius + 12) {
-      // Enter upgrade selection
-      inUpgrade = true;
+      gameState.set(STATES.UPGRADE_SCREEN);
       showUpgradeScreen(() => {
         stage++;
         portal = generateBasicArena(stage);
         Matter.Body.setPosition(player.body, { x: 200, y: config.world.height - 200 });
         Matter.Body.setVelocity(player.body, { x: 0, y: 0 });
-        score += 250; // small reward
+        score += 250;
         playerState.dashCharges = playerState.maxDashCharges;
-        inUpgrade = false;
-        // spawn a few more enemies for next stage
+        
         for (let i = 0; i < 4 + stage; i++) {
           const ex = 600 + Math.random() * (config.world.width - 800);
           const ey = config.world.height - 800 - Math.random() * 800;
           createEnemy(ex, ey);
         }
-        // Refresh unstable blocks for new stage
         for (let i = unstableBlocks.length - 1; i >= 0; i--) {
           try { Matter.World.remove(world, unstableBlocks[i].body); } catch (_) {}
           unstableBlocks.splice(i, 1);
@@ -181,11 +257,11 @@ function update() {
           const type = ['fragile', 'volatile', 'kinetic'][Math.floor(Math.random()*3)];
           createUnstableBlock(bx, by, 60, 40, type, world);
         }
+        gameState.set(STATES.IN_GAME);
       });
     }
   }
 
-  // HUD
   const now = performance.now();
   const dashReady = Math.min(1, (now - playerState.lastDashTime) / (config.player.dashCooldown || 1));
   updateHUD({ score, shards, health: playerState.health, dashRatio: dashReady });
@@ -237,7 +313,6 @@ function render() {
 function loop() {
   gameFrame++;
   update();
-  checkCollisions();
   render();
   requestAnimationFrame(loop);
 }
@@ -252,45 +327,12 @@ function playMusic() {
     }
 }
 
-// Start flow: show start screen and set listeners
 function init() {
+  playerData = loadPlayerData();
   initPhysics();
-  setupInputListeners((e) => {
-    handlePlayerJump(e);
-    if (e.code === 'KeyE' && player) {
-      const worldMouse = screenToWorld(mouse.x, mouse.y);
-      tryStartSlash(worldMouse);
-    }
-  }, null);
+  setupInputListeners(); // Configura os listeners uma única vez
   
-  const goBackToStart = () => {
-      hideAllScreens();
-      showStartScreen(
-          startRun, 
-          showCharacterSelect,
-          showShop
-      );
-  };
-
-  const showCharacterSelect = () => {
-      showCharacterSelectionScreen(
-          (character) => {
-              console.log("Personagem selecionado:", character);
-              startRun(character);
-          },
-          goBackToStart
-      );
-  };
-
-  const showShop = () => {
-      showShopScreen(goBackToStart);
-  };
-
-  showStartScreen(
-      startRun,
-      showCharacterSelect,
-      showShop
-  );
+  initGameFlow();
 
   // Music needs user interaction to start
   document.body.addEventListener('click', playMusic, { once: true });
@@ -301,62 +343,5 @@ function init() {
 
 init();
 
-// Manual collisions between simple entities
-function checkCollisions() {
-  if (!player) return;
-  const { Vector } = Matter;
-  const pPos = player.body.position;
-  // Player vs enemy
-  for (const e of enemies) {
-    const dist = Vector.magnitude(Vector.sub(pPos, e.position));
-    if (dist < (e.size/2 + config.player.width/2)) {
-      playerTakeDamage(() => gameOver(), camera);
-    }
-  }
-  // Projectiles
-  for (let i = projectiles.length - 1; i >= 0; i--) {
-    const proj = projectiles[i];
-    if (proj.isEnemy) {
-      // enemy projectile hits player
-      const dist = Vector.magnitude(Vector.sub(pPos, { x: proj.x, y: proj.y }));
-      if (dist < (proj.radius + Math.max(config.player.width, config.player.height)/3)) {
-        projectiles.splice(i,1);
-        playerTakeDamage(() => gameOver(), camera);
-        continue;
-      }
-    } else {
-      // friendly projectile hits enemy
-      let hit = false;
-      for (let j = enemies.length - 1; j >= 0; j--) {
-        const e = enemies[j];
-        const dist = Vector.magnitude(Vector.sub({ x: proj.x, y: proj.y }, e.position));
-        if (dist < (proj.radius + e.size/2)) {
-          hit = true;
-          e.hp -= 1;
-          if (e.hp <= 0) {
-            // enemy dies
-            enemies.splice(j,1);
-            spawnShard(e.position.x, e.position.y);
-            score += 100;
-          }
-          break;
-        }
-      }
-      // friendly projectile hits unstable blocks (AABB)
-      if (!hit) {
-        for (let k = 0; k < unstableBlocks.length; k++) {
-          const ub = unstableBlocks[k];
-          const bx = ub.body.position.x, by = ub.body.position.y;
-          const hw = ub.width / 2, hh = ub.height / 2;
-          if (Math.abs(proj.x - bx) <= hw + proj.radius && Math.abs(proj.y - by) <= hh + proj.radius) {
-            triggerUnstableBlock(ub, engine.world);
-            hit = true;
-            break;
-          }
-        }
-      }
-      if (hit) projectiles.splice(i,1);
-    }
-  }
-}
- 
+// A função checkCollisions não é mais necessária aqui, pois a lógica foi
+// integrada ao motor de física do Matter.js através de eventos.

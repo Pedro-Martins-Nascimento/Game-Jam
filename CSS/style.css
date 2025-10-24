@@ -29,6 +29,12 @@ canvas {
 #main-canvas {
   z-index: 1;
   background-color: transparent;
+  display: none; /* Esconde o canvas por padrão */
+}
+
+#main-canvas.interactive {
+  display: block; /* Torna o canvas visível e interativo */
+  pointer-events: auto;
 }
 
 #hud {
@@ -71,12 +77,13 @@ canvas {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: rgba(10, 10, 26, 0.85); /* Fundo escuro semi-transparente */
   color: #00ffff;
   font-family: 'Courier New', Courier, monospace;
   z-index: 10;
   text-align: center;
   cursor: pointer;
+  backdrop-filter: blur(5px); /* Adiciona um desfoque ao fundo */
 }
 
 .game-screen h1 {
@@ -222,6 +229,17 @@ canvas {
 
 .character-card p {
     font-size: 1em;
+}
+
+.character-card.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: #555;
+}
+
+.character-card.locked:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .back-button, #start-run-from-char-select {

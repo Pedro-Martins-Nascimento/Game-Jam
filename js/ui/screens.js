@@ -12,7 +12,6 @@ export function showStartScreen(onStart, onShowCharacters, onShowShop) {
   const shopBtn = document.getElementById('shop-button');
 
   const playHandler = () => {
-    // Ao clicar em jogar, vamos para a seleção de personagem por padrão
     hideAllScreens();
     onShowCharacters();
     cleanup();
@@ -42,8 +41,10 @@ export function showStartScreen(onStart, onShowCharacters, onShowShop) {
 }
 
 export function showGameOverScreen(score, best, currency, onRestart) {
+  hideAllScreens();
   const el = document.getElementById('game-over-screen');
   if (!el) return;
+  
   el.style.display = 'flex';
   const fs = document.getElementById('final-score');
   const bs = document.getElementById('best-score');
@@ -51,18 +52,19 @@ export function showGameOverScreen(score, best, currency, onRestart) {
   if (fs) fs.textContent = String(score);
   if (bs) bs.textContent = String(best);
   if (pc) pc.textContent = String(currency);
-  const keyHandler = (e) => {
-    if (e.code === 'KeyR') {
-      window.removeEventListener('keydown', keyHandler);
-      el.style.display = 'none';
-      onRestart && onRestart();
-    }
-  };
-  window.addEventListener('keydown', keyHandler);
+
+  // Adiciona um atraso para evitar que o clique que causou o game over feche a tela
+  setTimeout(() => {
+    const restartHandler = () => {
+      el.removeEventListener('click', restartHandler);
+      onRestart();
+    };
+    el.addEventListener('click', restartHandler, { once: true });
+  }, 500); // Atraso de 500ms
 }
 
 export function hideAllScreens() {
-  ['start-screen', 'upgrade-screen', 'game-over-screen'].forEach(id => {
+  ['start-screen', 'upgrade-screen', 'game-over-screen', 'character-selection-screen', 'shop-screen'].forEach(id => {
     const n = document.getElementById(id);
     if (n) n.style.display = 'none';
   });
@@ -94,7 +96,7 @@ export function showUpgradeScreen(onSelectUpgrade) {
   });
 }
 
-export function showCharacterSelectionScreen(onStartGame, onBack) {
+export function showCharacterSelectionScreen(onStartGame, onBack, unlockedCharacters = ['kira']) {
     const screen = document.getElementById('character-selection-screen');
     if (!screen) return;
     screen.style.display = 'flex';
@@ -105,13 +107,24 @@ export function showCharacterSelectionScreen(onStartGame, onBack) {
 
     let selectedCharacter = null;
 
+    // Habilita/desabilita cards baseados nos personagens desbloqueados
+    characterCards.forEach(card => {
+        const charName = card.dataset.character;
+        if (unlockedCharacters.includes(charName)) {
+            card.classList.remove('locked');
+            card.addEventListener('click', selectCharHandler);
+        } else {
+            card.classList.add('locked');
+            card.removeEventListener('click', selectCharHandler);
+        }
+    });
+
     const startHandler = () => {
         if (selectedCharacter) {
             onStartGame(selectedCharacter);
             cleanup();
         } else {
-            // Opcional: Adicionar feedback para o usuário selecionar um personagem
-            console.log("Por favor, selecione um personagem.");
+            alert("Por favor, selecione um personagem desbloqueado.");
         }
     };
 
@@ -120,7 +133,7 @@ export function showCharacterSelectionScreen(onStartGame, onBack) {
         cleanup();
     };
 
-    const selectCharHandler = (e) => {
+    function selectCharHandler(e) {
         characterCards.forEach(card => card.style.borderColor = '#00ffff');
         const selectedCard = e.currentTarget;
         selectedCard.style.borderColor = '#ff00ff'; // Highlight
@@ -136,7 +149,6 @@ export function showCharacterSelectionScreen(onStartGame, onBack) {
 
     startBtn.addEventListener('click', startHandler);
     backBtn.addEventListener('click', backHandler);
-    characterCards.forEach(card => card.addEventListener('click', selectCharHandler));
 }
 
 export function showShopScreen(onBack) {
