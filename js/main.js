@@ -54,6 +54,8 @@ let shards = 0; // player's collected shard count
 let stage = 1;
 let portal = null;
 // let inUpgrade = false; // 'inUpgrade' será substituído pelo gameState
+// Evita pular a tela de Game Over por clique residual
+let gameOverInputLockUntil = 0;
 
 function worldToScreen(x, y) {
   const sx = (x - camera.x) * camera.zoom + canvas.width / 2;
@@ -120,6 +122,13 @@ function gameOver() {
   updateBestScore(score);
   addPermanentCurrency(shards);
   playerData = loadPlayerData();
+
+  // Limpa inputs para não pular a tela de estatística
+  consumeClick();
+  mouse.isDown = false;
+  mouse.clicked = false;
+  for (const k in keys) keys[k] = false;
+  gameOverInputLockUntil = performance.now() + 400; // 0.4s de proteção
 
   showGameOverScreen(score, playerData.bestScore, playerData.permanentCurrency, initGameFlow);
 }
@@ -192,10 +201,18 @@ function handleProjectileCollisions() {
 
 
 function update() {
-  // Lógica de input baseada no estado do jogo
-  if (gameState.is(STATES.GAME_OVER) && mouse.clicked) {
-    initGameFlow(); // Volta para o menu
-    consumeClick(); // O clique é consumido APÓS ser usado.
+  // Lida com Game Over antes de qualquer outra lógica
+  if (gameState.is(STATES.GAME_OVER)) {
+    // Só aceita sair do Game Over após o lock e com novo clique
+    if (mouse.clicked && performance.now() >= gameOverInputLockUntil) {
+      initGameFlow();
+      consumeClick();
+    }
+    // Atualizações leves (fundo/câmera/partículas) para manter a cena viva
+    updateParticles();
+    if (player) updateCamera(player, gameFrame, bgCanvas, bgCtx);
+    else drawBackground(bgCanvas, bgCtx);
+    return;
   }
 
   // A lógica de atualização do jogo só roda se o estado for IN_GAME
